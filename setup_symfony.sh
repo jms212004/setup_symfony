@@ -150,6 +150,16 @@ if [ "$PHP_VERSION" -lt 8 ]; then
     exit 1
 fi
 
+# Ask for Symfony version
+print_question "Enter the Symfony version to install (e.g., 6.4, 7.0, latest):"
+read -r SYMFONY_VERSION
+
+# Validate Symfony version format
+if [[ ! "$SYMFONY_VERSION" =~ ^[0-9]+\.[0-9]+$ ]] && [ "$SYMFONY_VERSION" != "latest" ]; then
+    print_error "Invalid Symfony version format. Please use format X.Y (e.g., 6.4) or 'latest'"
+    exit 1
+fi
+
 # Create Symfony project
 print_message "Creating Symfony project in $PROJECT_DIR..."
 cd "$PROJECT_DIR" || exit 1
@@ -161,7 +171,11 @@ if [ "$AVAILABLE_SPACE" -lt 1 ]; then
     exit 1
 fi
 
-composer create-project symfony/skeleton:"6.4.*" .
+if [ "$SYMFONY_VERSION" == "latest" ]; then
+    composer create-project symfony/skeleton .
+else
+    composer create-project symfony/skeleton:"$SYMFONY_VERSION.*" .
+fi
 
 if [ $? -ne 0 ]; then
     print_error "Error creating Symfony project"
@@ -183,6 +197,12 @@ cat > .env << EOL
 ###> doctrine/doctrine-bundle ###
 DATABASE_URL="mysql://root:${MYSQL_ROOT_PASSWORD}@127.0.0.1:3306/${DB_NAME}?serverVersion=8.0.32&charset=utf8mb4"
 ###< doctrine/doctrine-bundle ###
+
+###> symfony/framework-bundle ###
+APP_ENV=prod
+APP_DEBUG=0
+APP_SECRET=\${APP_SECRET:-$(openssl rand -hex 32)}
+###< symfony/framework-bundle ###
 EOL
 
 # Create .env.local file
@@ -192,6 +212,12 @@ cat > .env.local << EOL
 # Local development database configuration
 DATABASE_URL="mysql://root:${MYSQL_ROOT_PASSWORD}@127.0.0.1:3306/${DB_NAME}?serverVersion=8.0.32&charset=utf8mb4"
 ###< doctrine/doctrine-bundle ###
+
+###> symfony/framework-bundle ###
+APP_ENV=dev
+APP_DEBUG=1
+APP_SECRET=\${APP_SECRET:-$(openssl rand -hex 32)}
+###< symfony/framework-bundle ###
 EOL
 
 # Create .env.test file
@@ -202,10 +228,11 @@ cat > .env.test << EOL
 DATABASE_URL="mysql://root:${MYSQL_ROOT_PASSWORD}@127.0.0.1:3306/${DB_NAME}_test?serverVersion=8.0.32&charset=utf8mb4"
 ###< doctrine/doctrine-bundle ###
 
-# Test environment specific configuration
+###> symfony/framework-bundle ###
 APP_ENV=test
 APP_DEBUG=1
-APP_SECRET=test_secret
+APP_SECRET=\${APP_SECRET:-$(openssl rand -hex 32)}
+###< symfony/framework-bundle ###
 EOL
 
 # Create database
@@ -230,6 +257,59 @@ php bin/console assets:install public
 # Configure permissions
 print_message "Configuring permissions..."
 chmod -R 777 var/cache var/log
+
+# Create README.md
+print_message "Creating README.md file..."
+cat > README.md << EOL
+# Symfony Project
+
+This is a Symfony project created using the setup_symfony script.
+
+## Requirements
+
+- PHP 8.0 or higher
+- MySQL
+- Composer
+
+## Installation
+
+1. Clone this repository
+2. Install dependencies:
+   \`\`\`bash
+   composer install
+   \`\`\`
+3. Configure your database in \`.env\` or \`.env.local\`
+4. Create the database:
+   \`\`\`bash
+   php bin/console doctrine:database:create
+   \`\`\`
+5. Run migrations if you have any:
+   \`\`\`bash
+   php bin/console doctrine:migrations:migrate
+   \`\`\`
+
+## Development
+
+Start the development server:
+\`\`\`bash
+symfony server:start
+\`\`\`
+
+The site will be accessible at: http://localhost:8000
+
+## Testing
+
+Run the tests:
+\`\`\`bash
+php bin/phpunit
+\`\`\`
+
+## Documentation
+
+- [Symfony Documentation](https://symfony.com/doc/current/index.html)
+- [Doctrine ORM Documentation](https://www.doctrine-project.org/projects/doctrine-orm/en/current/index.html)
+- [Twig Documentation](https://twig.symfony.com/doc/3.x/)
+EOL
 
 print_message "Installation completed successfully!"
 

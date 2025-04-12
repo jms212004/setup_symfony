@@ -172,9 +172,9 @@ if [ "$AVAILABLE_SPACE" -lt 1 ]; then
 fi
 
 if [ "$SYMFONY_VERSION" == "latest" ]; then
-    composer create-project symfony/skeleton .
+    symfony new . --webapp
 else
-    composer create-project symfony/skeleton:"$SYMFONY_VERSION.*" .
+    symfony new . --version="$SYMFONY_VERSION" --webapp
 fi
 
 if [ $? -ne 0 ]; then
@@ -203,6 +203,10 @@ APP_ENV=prod
 APP_DEBUG=0
 APP_SECRET=\${APP_SECRET:-$(openssl rand -hex 32)}
 ###< symfony/framework-bundle ###
+
+###> symfony/messenger ###
+MESSENGER_TRANSPORT_DSN=doctrine://default
+###< symfony/messenger ###
 EOL
 
 # Create .env.local file
@@ -218,6 +222,10 @@ APP_ENV=dev
 APP_DEBUG=1
 APP_SECRET=\${APP_SECRET:-$(openssl rand -hex 32)}
 ###< symfony/framework-bundle ###
+
+###> symfony/messenger ###
+MESSENGER_TRANSPORT_DSN=doctrine://default
+###< symfony/messenger ###
 EOL
 
 # Create .env.test file
@@ -233,6 +241,10 @@ APP_ENV=test
 APP_DEBUG=1
 APP_SECRET=\${APP_SECRET:-$(openssl rand -hex 32)}
 ###< symfony/framework-bundle ###
+
+###> symfony/messenger ###
+MESSENGER_TRANSPORT_DSN=doctrine://default
+###< symfony/messenger ###
 EOL
 
 # Create database
@@ -311,7 +323,74 @@ php bin/phpunit
 - [Twig Documentation](https://twig.symfony.com/doc/3.x/)
 EOL
 
+# Create .doc directory
+print_message "Creating .doc directory..."
+mkdir -p .doc
+
+
+# Create CHANGELOG.md
+print_message "Creating CHANGELOG.md file..."
+cat > .doc/CHANGELOG.md << EOL
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- Initial project setup
+- Basic Symfony installation
+- Database configuration
+- Development environment setup
+- Test environment setup
+
+### Changed
+- N/A
+
+### Deprecated
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- N/A
+
+### Security
+- N/A
+EOL
+
 print_message "Installation completed successfully!"
+
+# Ask if user wants to install Bootstrap
+print_question "Do you want to install Bootstrap? (y/n)"
+read -r INSTALL_BOOTSTRAP
+
+if [[ "$INSTALL_BOOTSTRAP" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    print_message "Installing Bootstrap..."
+    npm install bootstrap --save-dev
+    
+    if [ $? -ne 0 ]; then
+        print_error "Error installing Bootstrap"
+        exit 1
+    fi
+    
+    print_message "Bootstrap installed successfully!"
+fi
+
+# Install Symfony Mailer
+print_message "Installing Symfony Mailer..."
+composer require symfony/mailer
+
+if [ $? -ne 0 ]; then
+    print_error "Error installing Symfony Mailer"
+    exit 1
+fi
+
+print_message "Symfony Mailer installed successfully!"
 
 # Offer to start the server
 print_question "Do you want to start the development server now? (y/n)"

@@ -41,6 +41,12 @@ print_question "Enter MySQL root password:"
 read -s MYSQL_ROOT_PASSWORD
 echo "" # For line break after password input
 
+# Ask for database name
+print_question "Enter the name of the database to create:"
+read -r DB_NAME
+DB_NAME=$(echo "$DB_NAME" | tr -cd '[:alnum:]' | tr '[:upper:]' '[:lower:]')
+DB_TEST_NAME="${DB_NAME}_test"
+
 # Ask for installation directory
 print_question "Do you want to install the project in the current directory? (y/n)"
 read -r response
@@ -67,10 +73,6 @@ else
     print_message "Creating directory $PROJECT_DIR"
     mkdir -p "$PROJECT_DIR"
 fi
-
-# Extract database name from project path and clean it
-DB_NAME=$(basename "$PROJECT_DIR" | tr -cd '[:alnum:]' | tr '[:upper:]' '[:lower:]')
-DB_TEST_NAME="${DB_NAME}_test"
 
 # Check MySQL connection
 print_message "Checking MySQL connection..."
@@ -183,10 +185,38 @@ DATABASE_URL="mysql://root:${MYSQL_ROOT_PASSWORD}@127.0.0.1:3306/${DB_NAME}?serv
 ###< doctrine/doctrine-bundle ###
 EOL
 
+# Create .env.local file
+print_message "Creating .env.local file..."
+cat > .env.local << EOL
+###> doctrine/doctrine-bundle ###
+# Local development database configuration
+DATABASE_URL="mysql://root:${MYSQL_ROOT_PASSWORD}@127.0.0.1:3306/${DB_NAME}?serverVersion=8.0.32&charset=utf8mb4"
+###< doctrine/doctrine-bundle ###
+EOL
+
+# Create .env.test file
+print_message "Creating .env.test file..."
+cat > .env.test << EOL
+###> doctrine/doctrine-bundle ###
+# Test environment database configuration
+DATABASE_URL="mysql://root:${MYSQL_ROOT_PASSWORD}@127.0.0.1:3306/${DB_NAME}_test?serverVersion=8.0.32&charset=utf8mb4"
+###< doctrine/doctrine-bundle ###
+
+# Test environment specific configuration
+APP_ENV=test
+APP_DEBUG=1
+APP_SECRET=test_secret
+EOL
+
 # Create database
 print_message "Creating database..."
 mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS $DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS $DB_TEST_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+
+# Create database schema
+print_message "Creating database schema..."
 php bin/console doctrine:database:create --if-not-exists
+php bin/console doctrine:schema:create
 
 if [ $? -ne 0 ]; then
     print_error "Error creating database"

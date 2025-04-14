@@ -39,17 +39,28 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # Ask for MySQL root password
 print_question "Enter MySQL root password:"
 read -s MYSQL_ROOT_PASSWORD
+if [ -z "$MYSQL_ROOT_PASSWORD" ]; then
+    MYSQL_ROOT_PASSWORD="Azerty123!"
+    print_message "Using default MySQL root password"
+fi
 echo "" # For line break after password input
 
 # Ask for database name
 print_question "Enter the name of the database to create:"
 read -r DB_NAME
+if [ -z "$DB_NAME" ]; then
+    DB_NAME="symfony"
+    print_message "Using default database name: symfony"
+fi
 DB_NAME=$(echo "$DB_NAME" | tr -cd '[:alnum:]' | tr '[:upper:]' '[:lower:]')
 DB_TEST_NAME="${DB_NAME}_test"
 
 # Ask for installation directory
 print_question "Do you want to install the project in the current directory? (y/n)"
 read -r response
+if [ -z "$response" ]; then
+    response="n"
+fi
 
 if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     PROJECT_DIR="$SCRIPT_DIR"
@@ -57,6 +68,10 @@ if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
 else
     print_question "Enter the directory name for the project (relative or absolute path):"
     read -r PROJECT_DIR
+    if [ -z "$PROJECT_DIR" ]; then
+        PROJECT_DIR="symfony.test"
+        print_message "Using default directory name: symfony.test"
+    fi
     
     # If path is relative, convert to absolute
     if [[ ! "$PROJECT_DIR" = /* ]]; then
@@ -363,23 +378,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - N/A
 EOL
 
-print_message "Installation completed successfully!"
 
-# Ask if user wants to install Bootstrap
-print_question "Do you want to install Bootstrap? (y/n)"
-read -r INSTALL_BOOTSTRAP
 
-if [[ "$INSTALL_BOOTSTRAP" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-    print_message "Installing Bootstrap..."
-    npm install bootstrap --save-dev
-    
-    if [ $? -ne 0 ]; then
-        print_error "Error installing Bootstrap"
-        exit 1
-    fi
-    
-    print_message "Bootstrap installed successfully!"
+print_message "Installing Bootstrap..."
+npm install bootstrap --save-dev
+
+if [ $? -ne 0 ]; then
+    print_error "Error installing Bootstrap"
+    exit 1
 fi
+
+print_message "Bootstrap installed successfully!"
 
 # Install Symfony Mailer
 print_message "Installing Symfony Mailer..."
@@ -389,8 +398,25 @@ if [ $? -ne 0 ]; then
     print_error "Error installing Symfony Mailer"
     exit 1
 fi
-
 print_message "Symfony Mailer installed successfully!"
+
+# Install Symfony Webpack Encore
+print_message "Installing Symfony Webpack Encore..."
+composer require symfony/webpack-encore-bundle
+if [ $? -ne 0 ]; thenn
+
+    print_error "Error installing Symfony Webpack Encore"
+    exit 1
+fi
+
+print_message "Installing @symfony/webpack-encore..."
+npm install @symfony/webpack-encore --save-dev
+if [ $? -ne 0 ]; then
+    print_error "Error installing @symfony/webpack-encore"
+    exit 1
+fi
+print_message "Symfony Webpack Encore installed successfully!"
+
 
 # Offer to start the server
 print_question "Do you want to start the development server now? (y/n)"
@@ -398,11 +424,13 @@ read -r start_server
 
 if [[ "$start_server" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     print_message "Starting development server..."
-    print_message "The site will be accessible at: http://${DB_NAME}.localhost:8000"
+    print_message "The site will be accessible at: http://${PROJECT_DIR}.localhost:8000"
     print_message "Press Ctrl+C to stop the server"
-    cd "$PROJECT_DIR" && symfony server:start --host=${DB_NAME}.localhost
+    cd "$PROJECT_DIR" && symfony server:start --host=${PROJECT_DIR}.localhost
 else
     print_message "To start the server later, run:"
-    print_message "cd $PROJECT_DIR && symfony server:start --host=${DB_NAME}.localhost"
-    print_message "The site will then be accessible at: http://${DB_NAME}.localhost:8000"
+    print_message "cd $PROJECT_DIR && symfony server:start --host=${PROJECT_DIR}.localhost"
+    print_message "The site will then be accessible at: http://${PROJECT_DIR}.localhost:8000"
 fi 
+
+print_message "Installation completed successfully!"

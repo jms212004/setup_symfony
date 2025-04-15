@@ -46,7 +46,7 @@ fi
 echo "" # For line break after password input
 
 # Ask for database name
-print_question "Enter the name of the database to create:"
+print_question "Enter the name of the database to create(default: symfony):"
 read -r DB_NAME
 if [ -z "$DB_NAME" ]; then
     DB_NAME="symfony"
@@ -56,7 +56,7 @@ DB_NAME=$(echo "$DB_NAME" | tr -cd '[:alnum:]' | tr '[:upper:]' '[:lower:]')
 DB_TEST_NAME="${DB_NAME}_test"
 
 # Ask for installation directory
-print_question "Do you want to install the project in the current directory? (y/n)"
+print_question "Do you want to install the project in the current directory(default no)? (y/n)"
 read -r response
 if [ -z "$response" ]; then
     response="n"
@@ -66,7 +66,7 @@ if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     PROJECT_DIR="$SCRIPT_DIR"
     print_message "Installing in current directory: $PROJECT_DIR"
 else
-    print_question "Enter the directory name for the project (relative or absolute path):"
+    print_question "Enter the directory name for the project (relative or absolute path)(default symfony.test):"
     read -r PROJECT_DIR
     if [ -z "$PROJECT_DIR" ]; then
         PROJECT_DIR="symfony.test"
@@ -166,8 +166,12 @@ if [ "$PHP_VERSION" -lt 8 ]; then
 fi
 
 # Ask for Symfony version
-print_question "Enter the Symfony version to install (e.g., 6.4, 7.0, latest):"
+print_question "Enter the Symfony version to install (e.g., 6.4, 7.0, latest)(default latest):"
 read -r SYMFONY_VERSION
+if [ -z "$SYMFONY_VERSION" ]; then
+    SYMFONY_VERSION="latest"
+    print_message "Using default Symfony version: latest"
+fi
 
 # Validate Symfony version format
 if [[ ! "$SYMFONY_VERSION" =~ ^[0-9]+\.[0-9]+$ ]] && [ "$SYMFONY_VERSION" != "latest" ]; then
@@ -223,6 +227,7 @@ APP_SECRET=\${APP_SECRET:-$(openssl rand -hex 32)}
 MESSENGER_TRANSPORT_DSN=doctrine://default
 ###< symfony/messenger ###
 EOL
+
 
 # Create .env.local file
 print_message "Creating .env.local file..."
@@ -403,8 +408,7 @@ print_message "Symfony Mailer installed successfully!"
 # Install Symfony Webpack Encore
 print_message "Installing Symfony Webpack Encore..."
 composer require symfony/webpack-encore-bundle
-if [ $? -ne 0 ]; thenn
-
+if [ $? -ne 0 ]; then
     print_error "Error installing Symfony Webpack Encore"
     exit 1
 fi
@@ -417,6 +421,13 @@ if [ $? -ne 0 ]; then
 fi
 print_message "Symfony Webpack Encore installed successfully!"
 
+print_message "Installing dependencies symfony..."
+composer install
+if [ $? -ne 0 ]; then
+    print_error "Error installing dependencies symfony"
+    exit 1
+fi
+print_message "Dependencies symfony installed successfully!"
 
 # Offer to start the server
 print_question "Do you want to start the development server now? (y/n)"
@@ -433,4 +444,77 @@ else
     print_message "The site will then be accessible at: http://${PROJECT_DIR}.localhost:8000"
 fi 
 
-print_message "Installation completed successfully!"
+print_message "Installation Symfony completed successfully!"
+
+# https://symfony.com/doc/current/security.html
+print_question "Do you want to install the Security component? (y/n)"
+read -r install_security
+if [[ "$install_security" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    print_message "Installing Security component..."
+    composer require symfony/security-bundle
+    if [ $? -ne 0 ]; then
+        print_error "Error installing Security component"
+        exit 1
+    fi
+    print_message "Security component installed successfully!"
+fi
+
+print_question "Do you want to install user entity? (y/n)"
+read -r install_user_entity
+if [[ "$install_user_entity" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    print_message "Installing user entity..."
+    echo -e "User\nemail\nno" | php bin/console make:user
+    php bin/console make:migration
+    echo "yes" | php bin/console doctrine:migrations:migrate -n
+    if [ $? -ne 0 ]; then
+        print_error "Error installing user entity"
+        exit 1
+    fi
+    print_message "User entity installed successfully!"
+fi
+
+print_question "Do you want to install VerifyEmailBundle? (y/n)"
+read -r install_verify_email
+if [[ "$install_verify_email" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    print_message "Installing VerifyEmailBundle..."
+    composer require symfonycasts/verify-email-bundle
+    if [ $? -ne 0 ]; then
+        print_error "Error installing VerifyEmailBundle"
+        exit 1
+    fi
+    print_message "VerifyEmailBundle installed successfully!"
+fi
+
+print_question "Do you want to install Register component? (y/n)"
+read -r install_register
+if [[ "$install_register" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    print_message "Installing Register component..."
+    php bin/console make:registration-form
+    if [ $? -ne 0 ]; then
+        print_error "Error installing Register component"
+        exit 1
+    fi
+    print_message "Register component installed successfully!"
+fi
+
+print_question "Do you want to install EasyAdminBundle? (y/n)"
+read -r install_easy_admin
+if [[ "$install_easy_admin" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    print_message "Installing EasyAdminBundle..."
+    composer require easycorp/easyadmin-bundle
+    if [ $? -ne 0 ]; then
+        print_error "Error installing EasyAdminBundle"
+        exit 1
+    fi
+    print_message "EasyAdminBundle installed successfully!"
+fi
+
+print_question "Do you want to create a dashboard? (y/n)"
+read -r install_dashboard
+if [[ "$install_dashboard" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    print_message "Creating dashboard..."
+    php bin/console make:admin:dashboard
+    print_message "Dashboard created successfully!"
+fi
+# https://symfony.test/admin
+php bin/console cache:clean
